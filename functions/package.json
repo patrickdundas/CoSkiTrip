@@ -13,16 +13,14 @@
   },
   "main": "index.js",
   "dependencies": {
-    "@mapbox/mapbox-sdk": "^0.15.3",
-    "@mapbox/polyline": "^1.2.1",
-    "@turf/turf": "^6.5.0",
     "firebase": "^10.8.0",
     "firebase-admin": "^11.8.0",
     "firebase-functions": "^4.3.1",
     "snoowrap": "^1.23.0"
   },
   "devDependencies": {
-    "firebase-functions-test": "^3.1.0"
+    "firebase-functions-test": "^3.1.0",
+    "firebase-tools": "^13.2.1"
   },
   "private": true
 }
