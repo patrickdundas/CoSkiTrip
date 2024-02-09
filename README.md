@@ -1,10 +1,10 @@
 # CoSkiTrip
-Reddit Bot for monitoring and alerting on Colorado ski resort access road closures and alerts
-
+Reddit Bot for monitoring and alerting on Colorado ski resort route closures, incidents, and alerts based on live CDOT data
 ## Contributing
 
 - Fork the repository
 - Make your desired changes in `./functions/app.js`
+- List yourself as a contributor on the reddit post by updating `./functions/templates/reddit.md`
 - Note: `./functions/index.js` is for cloud infrastructure configuration and the GCP entrypoint, changes here usually won't be approved
 - Open a pull request and tag @patrickdundas
 
@@ -24,6 +24,7 @@ Don't know how to code? [Submit a feature request here](https://docs.google.com/
 ### Run the app
 ```
 $ cd functions
+$ npm install
 $ node ./runLocal.js
 ```
 When running locally, reddit markdown is generated as a file at `./functions/output.md`
