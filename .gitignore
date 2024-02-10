@@ -65,3 +65,9 @@ node_modules/
 # dotenv environment variables file
 .env
 .env*
+
+# output
+output.md
+
+#ide
+.vscode

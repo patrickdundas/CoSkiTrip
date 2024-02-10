@@ -4,11 +4,7 @@
  **[Contribute to the Bot](https://github.com/patrickdundas/CoSkiTripDash) or [Request Updates](https://forms.gle/etYQsWx4NZkEZctm9)**   
 Project Contributors: u/pattyd14
 
-# Travel Time 
-{{destinations}}
-
-# Incidents
-{{incidents}}
+{{routes}}
 
 &nbsp;  
 &nbsp;  

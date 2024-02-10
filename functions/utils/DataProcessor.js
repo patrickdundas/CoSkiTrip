@@ -1,6 +1,10 @@
 const snoowrap = require('snoowrap');
 const fs = require('fs');
-
+const path = require("path");
+const { Route } = require('../components/Route');
+const { Subroute } = require('../components/Subroute');
+const { Destination } = require('../components/Destination');
+const { Incident } = require('../components/Incident');
 class DataProcessor {
     constructor(){
         /*
@@ -13,10 +17,41 @@ class DataProcessor {
 
         this.destinations = {};
         this.markdown = "";
-        this.markdownTemplate = fs.readFileSync("./templates/reddit.md", "utf8");
+        this.markdownTemplate = fs.readFileSync(path.resolve(__dirname,"../templates/reddit.md"), "utf8");
         this.filters = {
-            routes: ["I-70"],
-            destinations: {"OpenTMS-TravelTime556483":{"displayName":"Georgetown Chainup to Tunnel","route":"I-70W"},"OpenTMS-TravelTime548989":{"displayName":"Silverthorne Chainup to Tunnel","route":"I-70E"}}
+            routes: {
+                "I-70": ["Westbound", "Eastbound"],
+                "US-50": ["Westbound", "Eastbound"]
+            },
+            destinations: {
+                "OpenTMS-TravelTime7685712394": {
+                    "displayName":"DEN/C-470 to Tunnel",
+                    "route":"I-70W"
+                },
+                "OpenTMS-TravelTime556483": {
+                    "displayName":"Georgetown Chainup to Tunnel",
+                    "route":"I-70W"
+                },
+                "OpenTMS-TravelTime551406": {
+                    "displayName":"Frisco to DEN/C-470",
+                    "route":"I-70E"
+                },
+                "OpenTMS-TravelTime548989": {
+                    "displayName":"Silverthorne Chainup to Tunnel",
+                    "route":"I-70E"
+                }
+            }
+        }
+
+        this.routes = {}
+
+        for(let route in this.filters["routes"]){
+            this.routes[route] = new Route(route);
+            console.log("adding", route)
+            for(let subroute of this.filters["routes"][route]){
+                console.log("adding", route, subroute)
+                this.routes[route].addSubroute(new Subroute(subroute))
+            }
         }
     }
 
@@ -36,35 +71,37 @@ class DataProcessor {
         }
     }
 
-    importDestinations(destinations){
-        let filteredDestinations = this.destinations;
+    hasRoute(name){
+        return Object.keys(this.routes).includes(name);
+    }
 
+    importDestinations(destinations){
         let destinationFilter = this.filters["destinations"];
 
         for(let destination of destinations){
             for (let filter in destinationFilter){
                 if(destination['properties']['id'] === filter){
                     let route = destinationFilter[filter]["route"].slice(0, destinationFilter[filter]["route"].length-1) // cut off direction (N,E,S,W)
-                    if(!Object.keys(filteredDestinations).includes(route)){
-                        filteredDestinations[route] = {}
+
+                    if(!this.hasRoute(route)){
+                        this.routes[route] = new Route(route);
                     }
-    
+                    let routeObj = this.routes[route];
+
                     let direction = this.convertRouteDirectionToString(destinationFilter[filter]["route"])
-                    if(!Object.keys(filteredDestinations[route]).includes(direction)){
-                        filteredDestinations[route][direction] = []
+                    
+                    if(!routeObj.hasSubroute(direction)){
+                        routeObj.addSubroute(new Subroute(direction));
                     }
-    
-                    filteredDestinations[route][direction].push({
-                        displayName: destinationFilter[filter].displayName,
-                        travelTime: destination['properties']['travelTime']
-                    })
+                    
+                    let destinationObj = new Destination(destinationFilter[filter].displayName, destination['properties']['travelTime'])
+                    routeObj.getSubroute(direction).addDestination(destinationObj)
                 }
             }
         }
     }
 
     importIncidents(incidents){
-        let filteredIncidents = this.incidents;
 
         let routeFilter = this.filters["routes"];
         // iterate through all current incidents and filter down to incidentRoutes
@@ -83,27 +120,31 @@ class DataProcessor {
                     }
                 }
             }
-            // check all routeFilter routes against the current incidentRoute
-            for(let route of routeFilter){
-                if(incidentRoute.indexOf(route) !== -1){
 
-                    let displayRoute;
+            // check all routeFilter routes against the current incidentRoute
+            for(let route in routeFilter){
+                if(incidentRoute.indexOf(route) !== -1){
+                    if(!this.hasRoute(route)){
+                        this.routes[route] = new Route(route)
+                    }
+
+                    let routeObj = this.routes[route];
+                    let incidentObj = new Incident(incident);
+
+                    console.log(JSON.stringify(incident))
+
                     if(impactsBothDirections){
-                        displayRoute = "Both Directions"
+                        routeObj.addGlobalIncident(incidentObj);
                     }
                     else{
-                        displayRoute = this.convertRouteDirectionToString(incidentRoute);
-                    }                    
+                        let direction = this.convertRouteDirectionToString(incidentRoute);
 
-                    if(!Object.keys(filteredIncidents).includes(route)){
-                        filteredIncidents[route] = {}
+                        if(!routeObj.hasSubroute(direction)){
+                            routeObj.addSubroute(new Subroute(direction))
+                        }
+    
+                        routeObj.getSubroute(direction).addIncident(incidentObj)
                     }
-
-                    if(!Object.keys(filteredIncidents[route]).includes(displayRoute)){
-                        filteredIncidents[route][displayRoute] = []
-                    }
-
-                    filteredIncidents[route][displayRoute].push(incident);
                     break;
                 }
             }
@@ -113,41 +154,67 @@ class DataProcessor {
 
     // build markdown by modifying contents of templates/reddit.md
     buildMarkdown(){
-        const incidents = this.incidents;
-        const destinations = this.destinations;
 
         let result = this.markdownTemplate;
 
         result = result.replace("{{timestamp}}", new Date().toLocaleString('en-US', { timeZone: 'America/Denver' }));
         
-        let destinationString = "";
+        let routesString = "";
 
-        for(let route in destinations){
-            destinationString+=`## ${route} \n`
-            for(let direction in destinations[route]){
-                destinationString+=`### ${direction} \n`
-                for(let destination of destinations[route][direction]){
-                    destinationString+=`#### ${destination.displayName} - ${destination.travelTime/60} mins \n`
+        for(let routeKey in this.routes){
+            let route = this.routes[routeKey]
+            routesString+=`# ${route.name} \n`
+
+            if(route.globalIncidents.length > 0){
+                routesString+=`## Both Directions \n`
+                for(let incident of route.globalIncidents){
+                    routesString += incident.toMarkdown();
                 }
             }
+
+            for(let subrouteKey in route.subroutes){
+                let subroute = route.subroutes[subrouteKey]
+                routesString+=`## ${subroute.direction} \n`
+
+                if(subroute.destinations.length > 0){
+                    routesString+=`| Section | Travel Time (mins) |\n|------|------|\n`
+                    for(let destination of subroute.destinations){
+                        routesString+=destination.toMarkdown()
+                    }
+                }
+                
+
+                for(let incident of subroute.incidents){
+                    routesString += incident.toMarkdown();
+                }
+                if(subroute.incidents.length === 0){
+                    routesString += `### No Incidents Reported \n`
+                }
+            }
+
+            routesString+=`--- \n\n`
+
+            
+
+
         }
 
-        result = result.replace("{{destinations}}", destinationString);
+        result = result.replace("{{routes}}", routesString);
         
-        let incidentString = "";
-        for(let route in incidents){
-            incidentString+=`## ${route}\n`
-            for(let subroute in incidents[route]){
-                incidentString+=`### ${subroute}\n`
-                for(let incident of incidents[route][subroute]){
-                    incident = incident['properties']
-                    let lastUpdated = new Date(incident['lastUpdated']).toLocaleString('en-US', { timeZone: 'America/Denver' });
-                    incidentString += `#### ${incident['type']} / ${incident['category']}\n${incident['travelerInformationMessage']}\n\n_Updated: ${lastUpdated}_\n\n`
-                }
-            }
-        }
+        // let incidentString = "";
+        // for(let route in incidents){
+        //     incidentString+=`## ${route}\n`
+        //     for(let subroute in incidents[route]){
+        //         incidentString+=`### ${subroute}\n`
+        //         for(let incident of incidents[route][subroute]){
+        //             incident = incident['properties']
+        //             let lastUpdated = new Date(incident['lastUpdated']).toLocaleString('en-US', { timeZone: 'America/Denver' });
+        //             incidentString += `#### ${incident['type']} / ${incident['category']}\n${incident['travelerInformationMessage']}\n\n_Updated: ${lastUpdated}_\n\n`
+        //         }
+        //     }
+        // }
 
-        result = result.replace("{{incidents}}", incidentString);
+        // result = result.replace("{{incidents}}", incidentString);
                 
         this.markdown = result;
     }
