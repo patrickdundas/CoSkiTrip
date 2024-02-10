@@ -1,10 +1,12 @@
 const snoowrap = require('snoowrap');
 const fs = require('fs');
+
 const path = require("path");
 const { Route } = require('../components/Route');
 const { Subroute } = require('../components/Subroute');
 const { Destination } = require('../components/Destination');
 const { Incident } = require('../components/Incident');
+
 class DataProcessor {
     constructor(){
         /*
@@ -17,6 +19,7 @@ class DataProcessor {
 
         this.destinations = {};
         this.markdown = "";
+
         this.markdownTemplate = fs.readFileSync(path.resolve(__dirname,"../templates/reddit.md"), "utf8");
         this.filters = {
             routes: {
@@ -52,6 +55,7 @@ class DataProcessor {
                 console.log("adding", route, subroute)
                 this.routes[route].addSubroute(new Subroute(subroute))
             }
+
         }
     }
 
@@ -96,6 +100,7 @@ class DataProcessor {
                     
                     let destinationObj = new Destination(destinationFilter[filter].displayName, destination['properties']['travelTime'])
                     routeObj.getSubroute(direction).addDestination(destinationObj)
+
                 }
             }
         }
@@ -158,7 +163,7 @@ class DataProcessor {
         let result = this.markdownTemplate;
 
         result = result.replace("{{timestamp}}", new Date().toLocaleString('en-US', { timeZone: 'America/Denver' }));
-        
+
         let routesString = "";
 
         for(let routeKey in this.routes){
@@ -194,9 +199,6 @@ class DataProcessor {
 
             routesString+=`--- \n\n`
 
-            
-
-
         }
 
         result = result.replace("{{routes}}", routesString);
@@ -215,6 +217,7 @@ class DataProcessor {
         // }
 
         // result = result.replace("{{incidents}}", incidentString);
+
                 
         this.markdown = result;
     }
