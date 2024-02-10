@@ -3,10 +3,19 @@ class Route{
         this.name = name;
         this.globalIncidents = []
         this.subroutes = {}
+        this.alerts = {}
     }
 
     addGlobalIncident(incident){
-        this.globalIncidents.push(incident);
+        if(incident.properties.type.toLowerCase().indexOf("chain law")){
+            this.alerts["chainlaw"] = "Chain Law Enforced";
+        }
+        else if(incident.properties.type.toLowerCase().indexOf("traction law")){
+            this.alerts["tractionlaw"] = "Traction Law Enforced";
+        }
+        else{
+            this.globalIncidents.push(incident);
+        }
     }
 
     addSubroute(subroute){

@@ -13,7 +13,9 @@ class DataProcessor {
         this.filters = {
             routes: {
                 "I-70": ["Westbound", "Eastbound"],
-                "US-50": ["Westbound", "Eastbound"]
+                "US-6": ["Westbound", "Eastbound"],
+                "US-40": ["Westbound", "Eastbound"],
+                "CO-9": ["Northbound", "Southbound"],
             },
             destinations: {
                 "OpenTMS-TravelTime7685712394": {
@@ -158,8 +160,12 @@ class DataProcessor {
             let route = this.routes[routeKey]
             routesString+=`# ${route.name} \n`
 
-            if(route.globalIncidents.length > 0){
+            if(route.globalIncidents.length > 0 || Object.keys(route.alerts).length > 0){
                 routesString+=`## Both Directions \n`
+                for(let alert in route.alerts){
+                    console.log(alert)
+                    routesString+=`### ${route.alerts[alert]} \n`
+                }
                 for(let incident of route.globalIncidents){
                     routesString += incident.toMarkdown();
                 }
@@ -170,7 +176,7 @@ class DataProcessor {
                 routesString+=`## ${subroute.direction} \n`
 
                 if(subroute.destinations.length > 0){
-                    routesString+=`| Section | Travel Time (mins) |\n|------|------|\n`
+                    routesString+=`| Section | Travel Time |\n|------|------|\n`
                     for(let destination of subroute.destinations){
                         routesString+=destination.toMarkdown()
                     }
