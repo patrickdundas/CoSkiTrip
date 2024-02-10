@@ -5,17 +5,9 @@ const { Route } = require('../components/Route');
 const { Subroute } = require('../components/Subroute');
 const { Destination } = require('../components/Destination');
 const { Incident } = require('../components/Incident');
+
 class DataProcessor {
     constructor(){
-        /*
-            Eventually this.incidents contains an object with the structure:
-            {
-                'I-70': { 'Eastbound': [ [Object], [Object], [Object] ], 'Westbound': [ [Object] ] }
-            }
-        */
-        this.incidents = {};
-
-        this.destinations = {};
         this.markdown = "";
         this.markdownTemplate = fs.readFileSync(path.resolve(__dirname,"../templates/reddit.md"), "utf8");
         this.filters = {
@@ -45,6 +37,7 @@ class DataProcessor {
 
         this.routes = {}
 
+        // load placeholders for the filtered routes into this.routes
         for(let route in this.filters["routes"]){
             this.routes[route] = new Route(route);
             console.log("adding", route)
@@ -200,21 +193,6 @@ class DataProcessor {
         }
 
         result = result.replace("{{routes}}", routesString);
-        
-        // let incidentString = "";
-        // for(let route in incidents){
-        //     incidentString+=`## ${route}\n`
-        //     for(let subroute in incidents[route]){
-        //         incidentString+=`### ${subroute}\n`
-        //         for(let incident of incidents[route][subroute]){
-        //             incident = incident['properties']
-        //             let lastUpdated = new Date(incident['lastUpdated']).toLocaleString('en-US', { timeZone: 'America/Denver' });
-        //             incidentString += `#### ${incident['type']} / ${incident['category']}\n${incident['travelerInformationMessage']}\n\n_Updated: ${lastUpdated}_\n\n`
-        //         }
-        //     }
-        // }
-
-        // result = result.replace("{{incidents}}", incidentString);
                 
         this.markdown = result;
     }
