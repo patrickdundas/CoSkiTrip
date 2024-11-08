@@ -34,6 +34,13 @@ class DataProcessor {
                     "displayName":"Silverthorne Chainup to Tunnel",
                     "route":"I-70E"
                 }
+            },
+            passes: {
+                "US-6": {
+                    "Loveland Pass": [217,229]
+                },
+                "US-40": ["Berthoud Pass", "Rabbit Ears Pass"],
+                "I-70": ["Vail Pass"]
             }
         }
 
@@ -51,6 +58,7 @@ class DataProcessor {
     }
 
     convertRouteDirectionToString(route){
+        if(route == null) return null;
         let direction = route.slice(route.length-1,route.length).toUpperCase()
         switch (direction) {
             case "S":
@@ -97,52 +105,83 @@ class DataProcessor {
     }
 
     importIncidents(incidents){
-
         let routeFilter = this.filters["routes"];
         // iterate through all current incidents and filter down to incidentRoutes
         for(let incident of incidents){
-            // extract info from the incident
-            let incidentRoute = incident['properties']['routeName'].toUpperCase();
 
-            let impactsBothDirections = false;
+            // TODO : Mountain Pass Closure detection
+            // travelerInformationMessage contains "Loveland Pass" and "Road closed" or "Safety closure"
 
-            // Detect if the incident impacts both directions of travel (array incident['properties']['additionalImpacts'] contains a string "Impacts both directions")
-            if(Object.keys(incident['properties']).includes("additionalImpacts")){
-                for(let impact of incident['properties']['additionalImpacts']){
-                    if(impact.toUpperCase() === "IMPACTS BOTH DIRECTIONS"){
-                        impactsBothDirections = true;
+            try {
+                // extract info from the incident
+                let incidentRoute = incident['properties']['routeName'].toUpperCase();
+                console.log(incidentRoute, incident.properties.type)
+                let impactsBothDirections = false;
+
+                // Detect if the incident impacts both directions of travel (array incident['properties']['additionalImpacts'] contains a string "Impacts both directions")
+                if(Object.keys(incident['properties']).includes("additionalImpacts")){
+                    for(let impact of incident['properties']['additionalImpacts']){
+                        if(impact.toUpperCase() === "IMPACTS BOTH DIRECTIONS"){
+                            impactsBothDirections = true;
+                            break;
+                        }
+                    }
+                }
+
+
+                // check all routeFilter routes against the current incidentRoute
+                for(let route in routeFilter){
+                    if(incidentRoute.indexOf(route) !== -1){
+                        if(!this.hasRoute(route)){
+                            this.routes[route] = new Route(route)
+                        }
+
+                        let routeObj = this.routes[route];
+                        let incidentObj = new Incident(incident);
+                        console.log(route, incident.properties.type)
+
+                        // Remove irrelevant chain law incidents
+                        if(incident.properties.type.toLowerCase().indexOf("chain law")!==-1){
+                            break;
+                        }
+                        // Condense traction law incidents into one alert shown for the whole route
+                        if((incident.properties.type.toLowerCase().indexOf("traction law") !== -1 || incident.properties.type.toLowerCase().indexOf("traction/chain") !== -1) && incident.properties.type.toLowerCase().indexOf("lifted") === -1){
+                            routeObj.addAlert("tractionlaw", "Traction Law Enforced");
+                        }
+                        // Add any global incidents impacting both directions
+                        else if(impactsBothDirections){
+                            routeObj.addGlobalIncident(incidentObj);
+                        }
+                        // Regular incidents for one subroute / direction
+                        else{
+                            let direction = this.convertRouteDirectionToString(incidentRoute);
+
+                            if(!routeObj.hasSubroute(direction)){
+                                routeObj.addSubroute(new Subroute(direction))
+                            }
+        
+                            routeObj.getSubroute(direction).addIncident(incidentObj)
+                        }
                         break;
                     }
                 }
+            } catch (error) {
+                console.error("caught error in importIncidents", error)
             }
 
-            // check all routeFilter routes against the current incidentRoute
-            for(let route in routeFilter){
-                if(incidentRoute.indexOf(route) !== -1){
-                    if(!this.hasRoute(route)){
-                        this.routes[route] = new Route(route)
-                    }
+            
 
-                    let routeObj = this.routes[route];
-                    let incidentObj = new Incident(incident);
+            // for(let route in this.filters["passes"]){
+            //     if(incidentRoute.indexOf(route)!==-1){
+            //         // search the incident text
+            //         for(let pass of this.filters["passes"][route]){
+                        
+            //             if(incident.properties.travelerInformationMessage)
+            //         }
+            //     }
+            // }
 
-                    console.log(JSON.stringify(incident))
-
-                    if(impactsBothDirections){
-                        routeObj.addGlobalIncident(incidentObj);
-                    }
-                    else{
-                        let direction = this.convertRouteDirectionToString(incidentRoute);
-
-                        if(!routeObj.hasSubroute(direction)){
-                            routeObj.addSubroute(new Subroute(direction))
-                        }
-    
-                        routeObj.getSubroute(direction).addIncident(incidentObj)
-                    }
-                    break;
-                }
-            }
+            
         }
     }
 
