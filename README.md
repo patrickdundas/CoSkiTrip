@@ -40,3 +40,5 @@ When running locally, reddit markdown is generated as a file at `./functions/out
 - Infrastructure is paid for and managed by @patrickdundas
 - The app runs on Firebase / Google Cloud Platform Cloud Functions, and is executed every 10 minutes
 - PRs modifying the firebase config or firebase `./functions/index.js` files usually won't be approved
+- Infrastrucure managers can update relevant environment vars with `firebase functions:secrets:set VAR_NAME`
+- Reddit access tokens should be configured at https://not-an-aardvark.github.io/reddit-oauth-helper/ (ie. if the app connection to reddit throws a 400, the access/refresh tokens can be updated here)
